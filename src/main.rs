@@ -2,10 +2,12 @@ use ansi_term::Colour;
 use std::{env, process};
 use chrono::{NaiveDate, Datelike};
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 mod args;
 mod config;
 mod repo;
+mod preprocessor;
 
 fn stop_with_error(error_msg: &str) -> ! {
     print_err(error_msg);
@@ -111,24 +113,33 @@ fn edit_journal_file(journal_path: &Path, path: &Path, commit_msg: &str, offline
 
 fn create_page(journal_path: &Path, page_path: &Path) {
     let template_path = template_path(journal_path);
+
     if template_path.exists() {
+
+        let macros = HashMap::from([
+            (String::from("DATE"), Box::new(|| {
+                chrono::offset::Local::today().naive_local().to_string()
+            }))
+        ]);
+
+        let template_text = std::fs::read_to_string(template_path).unwrap();
+        let processed_template = preprocessor::process(&template_text, &macros);
+
         let page_dir = page_path.parent().unwrap();
         if !page_dir.exists() {
             std::fs::create_dir(page_dir).unwrap();
         }
-        match std::fs::copy(template_path, page_path) {
-            Ok(_) => (),
-            Err(_) => stop_with_error("Failed to create page")
-        }
+        std::fs::write(page_path, processed_template);
     }
 }
 
-fn edit_page(journal_path: &Path, page_date: NaiveDate, offline_mode: bool)
-{
+fn edit_page(journal_path: &Path, page_date: NaiveDate, offline_mode: bool) {
     let page_path = page_path_from_date(journal_path, page_date);
     if !page_path.exists() {
         create_page(journal_path, page_path.as_path());
     }
+
+    let template_path = template_path(journal_path);
 
     edit_journal_file(journal_path, page_path.as_path(), "Page updated", offline_mode);
 }
