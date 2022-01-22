@@ -145,18 +145,9 @@ fn edit_page(journal_path: &Path, page_date: NaiveDate, offline_mode: bool) {
 }
 
 fn open_todays_page(offline_mode: bool) {
-    let config_path = config_path();
-    let config = config::load_config(config_path.as_path());
-
     let today = chrono::offset::Local::today().naive_local();
-    let journal_path = match config.path {
-        Some(val) => val,
-        None => stop_with_error("Journal path not set in config.")
-    };
-
-    edit_page(journal_path.as_path(), today, offline_mode);
+    open_page(today, offline_mode);
 }
-
 
 fn open_page(date: NaiveDate, offline_mode: bool) {
     let config_path = config_path();
