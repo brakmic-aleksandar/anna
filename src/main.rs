@@ -60,8 +60,8 @@ fn editor() -> Result<String, String> {
 fn page_path_from_date(journal_path: &Path, date: NaiveDate) -> PathBuf {
     let mut path = PathBuf::from(journal_path);
     path.push(date.year().to_string());
-    path.push(date.month().to_string());
-    path.push(date.day().to_string());
+    path.push(format!("{:0>2}", date.month()));
+    path.push(format!("{:0>2}", date.day()));
     path.set_extension("txt");
 
     path
