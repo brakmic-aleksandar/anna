@@ -188,13 +188,33 @@ fn update_config(config_args: args::Config) {
     config::update_config(config_path.as_path(), &config);
 }
 
+fn add_macro(args: args::AddMacro) {
+    let config_path = config_path();
+    let mut config: config::Config = config::load_config(config_path.as_path());
+    let macros = config.macros.get_or_insert_with(|| HashMap::new());
+    macros.insert(args.name, args.command);
+    config::update_config(config_path.as_path(), &config);
+}
+
+fn remove_macro(args: args::RemoveMacro) {
+    let config_path = config_path();
+    let mut config: config::Config = config::load_config(config_path.as_path());
+    let macros = config.macros.get_or_insert_with(|| HashMap::new());
+    macros.remove(&args.name);
+    config::update_config(config_path.as_path(), &config);
+}
+
 fn main() {
     let args = args::args();
 
-    match args.action {
+    match args.subcommand {
         None => open_todays_page(args.offline),
-        Some(args::Action::Config(config)) => update_config(config),
-        Some(args::Action::Page(page)) => open_page(page.date, args.offline),
-        Some(args::Action::Template) => edit_template(args.offline)
+        Some(args::Subcommand::Config(config)) => update_config(config),
+        Some(args::Subcommand::Page(page)) => open_page(page.date, args.offline),
+        Some(args::Subcommand::Template) => edit_template(args.offline),
+        Some(args::Subcommand::Macro(m)) => match m.subcommand {
+            args::MacroSubcommand::Add(add) => add_macro(add),
+            args::MacroSubcommand::Rm(rm) => remove_macro(rm)
+        }
     };
 }

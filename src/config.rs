@@ -3,18 +3,21 @@ use toml;
 use std::fs;
 use std::path::Path;
 use std::io::ErrorKind;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub editor: Option<String>,
-    pub path: Option<std::path::PathBuf>
+    pub path: Option<std::path::PathBuf>,
+    pub macros: Option<HashMap<String, String>>
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
             editor: None,
-            path: None
+            path: None,
+            macros: None
         }
     }
 }
