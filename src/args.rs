@@ -18,14 +18,43 @@ pub struct Page {
     pub date: NaiveDate,
 }
 
+#[derive(clap::Args, Debug)]
+pub struct Macro {
+    #[clap(subcommand)]
+    pub subcommand: MacroSubcommand
+}
+
 #[derive(clap::Subcommand, Debug)]
-pub enum Action {
+pub enum MacroSubcommand {
+    /// Add new macro
+    Add(AddMacro),
+    /// Remove macro
+    Rm(RemoveMacro)
+}
+
+#[derive(clap::Args, Debug)]
+pub struct AddMacro {
+    #[clap()]
+    pub name: String,
+    pub command: String
+}
+
+#[derive(clap::Args, Debug)]
+pub struct RemoveMacro {
+    #[clap()]
+    pub name: String
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum Subcommand {
     /// Edit config
     Config(Config),
     /// Edit specific page
     Page(Page),
     /// Edit template
-    Template
+    Template,
+    /// Add or remove macro
+    Macro(Macro)
 }
 
 /// Simple git based journaling app
@@ -37,7 +66,7 @@ pub struct Args {
     pub offline: bool,
 
     #[clap(subcommand)]
-    pub action: Option<Action>,
+    pub subcommand: Option<Subcommand>,
 }
 
 pub fn args() -> Args {
