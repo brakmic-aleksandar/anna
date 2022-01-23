@@ -1,5 +1,5 @@
 use ansi_term::Colour;
-use std::{env, process};
+use std::{str, env, process};
 use chrono::{NaiveDate, Datelike};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
@@ -111,16 +111,38 @@ fn edit_journal_file(journal_path: &Path, path: &Path, commit_msg: &str, offline
     }
 }
 
+fn macros() -> HashMap<String, Box<dyn Fn() -> String>> {
+    let mut macros = HashMap::from([
+        ( String::from("DATE"), Box::new(|| { chrono::offset::Local::today().naive_local().to_string() } ) as Box<dyn Fn() -> String> )
+    ]);
+
+    let config_path = config_path();
+    let mut config: config::Config = config::load_config(config_path.as_path());
+    let custom_macros = config.macros.get_or_insert_with(|| HashMap::new());
+
+    for m in custom_macros {
+        let cmd = m.1.clone();
+        macros.insert(m.0.to_string(), Box::new(move || {
+            let tokens = cmd.split(" ").collect::<Vec<&str>>();
+            match process::Command::new(&tokens[0])
+                .args(&tokens[1..])
+                .output() {
+                    Ok(output) => str::from_utf8(&output.stdout).unwrap().to_string(),
+                    Err(_) => stop_with_error("Failed to start custom macro")
+                }
+        }
+        ));
+    }
+
+    macros
+}
+
 fn create_page(journal_path: &Path, page_path: &Path) {
     let template_path = template_path(journal_path);
 
     if template_path.exists() {
 
-        let macros = HashMap::from([
-            (String::from("DATE"), Box::new(|| {
-                chrono::offset::Local::today().naive_local().to_string()
-            }))
-        ]);
+        let macros = macros();
 
         let template_text = std::fs::read_to_string(template_path).unwrap();
         let processed_template = preprocessor::process(&template_text, &macros);

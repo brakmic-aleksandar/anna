@@ -10,7 +10,7 @@ enum States {
     Macro{ name: String }
 }
 
-pub fn process(text: &str, macros_map: &HashMap<String, Box<impl Fn() -> String>>)  -> String {
+pub fn process(text: &str, macros_map: &HashMap<String, Box<dyn Fn() -> String>>)  -> String {
     let mut state = States::Normal;
     let mut new_text = "".to_string();
 
