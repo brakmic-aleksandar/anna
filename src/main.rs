@@ -1,6 +1,6 @@
 use ansi_term::Colour;
 use std::{str, env, process};
-use chrono::{NaiveDate, Datelike};
+use chrono::{Duration, NaiveDate, Datelike, Timelike};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
@@ -111,13 +111,25 @@ fn edit_journal_file(journal_path: &Path, path: &Path, commit_msg: &str, offline
     }
 }
 
-fn macros() -> HashMap<String, Box<dyn Fn() -> String>> {
-    let mut macros = HashMap::from([
-        ( String::from("DATE"), Box::new(|| { chrono::offset::Local::today().naive_local().to_string() } ) as Box<dyn Fn() -> String> )
-    ]);
+fn today(midnight_offset: Option<u32>) -> NaiveDate {
+    let offset = midnight_offset.unwrap_or(0);
+    let mut today = chrono::offset::Local::now().naive_local();
 
+    if today.hour() <= offset {
+        today -= Duration::days(1);
+    }
+
+    today.date()
+}
+
+fn macros() -> HashMap<String, Box<dyn Fn() -> String>> {
     let config_path = config_path();
     let mut config: config::Config = config::load_config(config_path.as_path());
+
+    let mut macros = HashMap::from([
+        ( String::from("DATE"), Box::new(move || { today(config.midnight_offset).to_string() } ) as Box<dyn Fn() -> String> )
+    ]);
+
     let custom_macros = config.macros.get_or_insert_with(|| HashMap::new());
 
     for m in custom_macros {
@@ -161,13 +173,14 @@ fn edit_page(journal_path: &Path, page_date: NaiveDate, offline_mode: bool) {
         create_page(journal_path, page_path.as_path());
     }
 
-    let template_path = template_path(journal_path);
-
     edit_journal_file(journal_path, page_path.as_path(), "Page updated", offline_mode);
 }
 
 fn open_todays_page(offline_mode: bool) {
-    let today = chrono::offset::Local::today().naive_local();
+    let config_path = config_path();
+    let config = config::load_config(config_path.as_path());
+    let today = today(config.midnight_offset);
+
     open_page(today, offline_mode);
 }
 
@@ -206,6 +219,10 @@ fn update_config(config_args: args::Config) {
     config.path = match config_args.path {
         Some(path) => Some(path),
         None => config.path
+    };
+    config.midnight_offset = match config_args.midnight_offset {
+        Some(midnight_offset) => Some(midnight_offset),
+        None => config.midnight_offset
     };
     config::update_config(config_path.as_path(), &config);
 }

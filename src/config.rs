@@ -9,6 +9,7 @@ use std::collections::HashMap;
 pub struct Config {
     pub editor: Option<String>,
     pub path: Option<std::path::PathBuf>,
+    pub midnight_offset: Option<u32>,
     pub macros: Option<HashMap<String, String>>
 }
 
@@ -17,6 +18,7 @@ impl Default for Config {
         Config {
             editor: None,
             path: None,
+            midnight_offset: None,
             macros: None
         }
     }

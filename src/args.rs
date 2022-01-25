@@ -10,6 +10,10 @@ pub struct Config {
     /// Default text editor
     #[clap(long)]
     pub editor: Option<String>,
+
+    /// Number of hours after midnight before new starts
+    #[clap(long)]
+    pub midnight_offset: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
