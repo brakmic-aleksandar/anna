@@ -36,17 +36,26 @@ fn config_path() -> PathBuf {
     path
 }
 
+fn config() -> config::Config {
+    let config_path = config_path();
+    config::load_config(&config_path)
+}
+
+fn save_config(config: &config::Config) {
+    let config_path = config_path();
+    config::update_config(&config_path, &config);
+}
+
 fn template_path(journal_path: &Path) -> PathBuf {
     let mut template_path = PathBuf::from(journal_path);
     template_path.push("template");
-    template_path.set_extension("txt");
 
     template_path
 }
 
 fn editor() -> Result<String, String> {
     let config_path = config_path();
-    let config = config::load_config(config_path.as_path());
+    let config = config::load_config(&config_path);
 
     match config.editor {
         Some(val) => Ok(val),
@@ -58,11 +67,12 @@ fn editor() -> Result<String, String> {
 }
 
 fn page_path_from_date(journal_path: &Path, date: NaiveDate) -> PathBuf {
+    let config = config();
     let mut path = PathBuf::from(journal_path);
     path.push(date.year().to_string());
     path.push(format!("{:0>2}", date.month()));
     path.push(format!("{:0>2}", date.day()));
-    path.set_extension("txt");
+    path.set_extension(config.extension.unwrap_or("txt".into()));
 
     path
 }
@@ -123,14 +133,13 @@ fn today(midnight_offset: Option<u32>) -> NaiveDate {
 }
 
 fn macros() -> HashMap<String, Box<dyn Fn() -> String>> {
-    let config_path = config_path();
-    let mut config: config::Config = config::load_config(config_path.as_path());
+    let mut config = config();
 
     let mut macros = HashMap::from([
         ( String::from("DATE"), Box::new(move || { today(config.midnight_offset).to_string() } ) as Box<dyn Fn() -> String> )
     ]);
 
-    let custom_macros = config.macros.get_or_insert_with(|| HashMap::new());
+    let custom_macros = config.macros.get_or_insert_with(HashMap::new);
 
     for m in custom_macros {
         let cmd = m.1.clone();
@@ -170,48 +179,42 @@ fn create_page(journal_path: &Path, page_path: &Path) {
 fn edit_page(journal_path: &Path, page_date: NaiveDate, offline_mode: bool) {
     let page_path = page_path_from_date(journal_path, page_date);
     if !page_path.exists() {
-        create_page(journal_path, page_path.as_path());
+        create_page(journal_path, &page_path);
     }
 
-    edit_journal_file(journal_path, page_path.as_path(), "Page updated", offline_mode);
+    edit_journal_file(journal_path, &page_path, "Page updated", offline_mode);
 }
 
 fn open_todays_page(offline_mode: bool) {
-    let config_path = config_path();
-    let config = config::load_config(config_path.as_path());
+    let config = config();
     let today = today(config.midnight_offset);
 
     open_page(today, offline_mode);
 }
 
 fn open_page(date: NaiveDate, offline_mode: bool) {
-    let config_path = config_path();
-    let config = config::load_config(config_path.as_path());
+    let config = config();
 
     let journal_path = match config.path {
         Some(val) => val,
         None => stop_with_error("Journal path not set in config.")
     };
 
-    edit_page(journal_path.as_path(), date, offline_mode);
+    edit_page(&journal_path, date, offline_mode);
 }
 
 fn edit_template(offline_mode: bool) {
-    let config_path = config_path();
-    let config = config::load_config(config_path.as_path());
-
+    let config = config();
     let journal_path = match config.path {
         Some(val) => val,
         None => stop_with_error("Journal path not set in config.")
     };
-    let template_path = template_path(journal_path.as_path());
-
-    edit_journal_file(journal_path.as_path(), template_path.as_path(), "Template updated", offline_mode);
+    let template_path = template_path(&journal_path);
+    edit_journal_file(&journal_path, &template_path, "Template updated", offline_mode);
 }
 
 fn update_config(config_args: args::Config) {
-    let config_path = config_path();
-    let mut config: config::Config = config::load_config(config_path.as_path());
+    let mut config = config();
     config.editor = match config_args.editor {
         Some(editor) => Some(editor),
         None => config.editor
@@ -220,27 +223,29 @@ fn update_config(config_args: args::Config) {
         Some(path) => Some(path),
         None => config.path
     };
+    config.extension = match config.extension {
+        Some(extension) => Some(extension),
+        None => config.extension
+    };
     config.midnight_offset = match config_args.midnight_offset {
         Some(midnight_offset) => Some(midnight_offset),
         None => config.midnight_offset
     };
-    config::update_config(config_path.as_path(), &config);
+    save_config(&config);
 }
 
 fn add_macro(args: args::AddMacro) {
-    let config_path = config_path();
-    let mut config: config::Config = config::load_config(config_path.as_path());
-    let macros = config.macros.get_or_insert_with(|| HashMap::new());
+    let mut config = config();
+    let macros = config.macros.get_or_insert_with(HashMap::new);
     macros.insert(args.name, args.command);
-    config::update_config(config_path.as_path(), &config);
+    save_config(&config);
 }
 
 fn remove_macro(args: args::RemoveMacro) {
-    let config_path = config_path();
-    let mut config: config::Config = config::load_config(config_path.as_path());
-    let macros = config.macros.get_or_insert_with(|| HashMap::new());
+    let mut config = config();
+    let macros = config.macros.get_or_insert_with(HashMap::new);
     macros.remove(&args.name);
-    config::update_config(config_path.as_path(), &config);
+    save_config(&config);
 }
 
 fn main() {
@@ -251,7 +256,7 @@ fn main() {
         Some(args::Subcommand::Config(config)) => update_config(config),
         Some(args::Subcommand::Page(page)) => open_page(page.date, args.offline),
         Some(args::Subcommand::Template) => edit_template(args.offline),
-        Some(args::Subcommand::Macro(m)) => match m.subcommand {
+        Some(args::Subcommand::Macro(r#macro)) => match r#macro.subcommand {
             args::MacroSubcommand::Add(add) => add_macro(add),
             args::MacroSubcommand::Rm(rm) => remove_macro(rm)
         }

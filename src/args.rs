@@ -14,6 +14,9 @@ pub struct Config {
     /// Number of hours after midnight before new starts
     #[clap(long)]
     pub midnight_offset: Option<u32>,
+
+    /// File extension for journal entries
+    pub extension: Option<String>
 }
 
 #[derive(clap::Args, Debug)]
