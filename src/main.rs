@@ -223,7 +223,7 @@ fn update_config(config_args: args::Config) {
         Some(path) => Some(path),
         None => config.path
     };
-    config.extension = match config.extension {
+    config.extension = match config_args.extension {
         Some(extension) => Some(extension),
         None => config.extension
     };

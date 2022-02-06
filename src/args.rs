@@ -16,6 +16,7 @@ pub struct Config {
     pub midnight_offset: Option<u32>,
 
     /// File extension for journal entries
+    #[clap(long)]
     pub extension: Option<String>
 }
 
