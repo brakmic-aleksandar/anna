@@ -29,8 +29,8 @@ fn print_msg(msg: &str) {
 fn config_path() -> PathBuf {
     let mut path = env::home_dir().unwrap();
     path.push(".config");
-    path.push("journal_cli");
-    path.push("journal_cli");
+    path.push("anna");
+    path.push("anna");
     path.set_extension("toml");
 
     path
